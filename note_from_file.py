@@ -46,28 +46,6 @@ def set_audio():
     fs.program_select(  16  ,     sfid,   0,      29 ) # overdrive guitar
         
 
-def sortie_to_note(n, sortie):
-    channel = 1
-    life = 0.1
-    volume = 100
-
-    for j in sortie:
-        if n%4 == 0:
-            channel = 9
-            life = 0.5
-        elif n%3 == 0:
-            channel = 13
-            life = 0.1
-        else:
-            channel = 1
-            life = 0.1
-        if j.isdigit():
-            volume = 30 + 10*int(j)
-        if not j.isdigit():
-            sleep(0.01)
-            note = 50 + 3*Dictionary[j]
-            playNote(note, life, channel, volume)
-
 
 def playNote(note, life, channel, volume):
     '''note from 0 to 127 but all values are not possible in all bank
@@ -83,8 +61,8 @@ def playNote(note, life, channel, volume):
     fin = fs.noteoff(channel, note)
     
 
-def thread_note(n, sortie):
-    thread = threading.Thread(target=sortie_to_note, args=(n, sortie))
+def thread_note(note, life, channel, volume):
+    thread = threading.Thread(target=playNote, args=(note, life, channel, volume))
     thread.start()
 
 
