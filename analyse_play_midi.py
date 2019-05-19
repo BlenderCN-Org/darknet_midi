@@ -2,14 +2,17 @@
 # -*- coding: utf8 -*-
 
 
-import pretty_midi
-import numpy
+import os
 from time import sleep
+import pathlib
+from random import randint, choice
 import threading
+import numpy
+import pretty_midi
 import fluidsynth
 
 """
-Utilise FluidR3_GM.sf2
+Utilise FluidR3_GM.sf2 uniquement
 Installation:
     numpy
     pretty_midi
@@ -19,45 +22,37 @@ Installation:
 
 
 class PlayOneMidiChannel:
+    """Ne fonctionne qu'avec FluidR3_GM.sf2"""
     
-    def __init__(self, channel, fonts):
+    def __init__(self, fonts, bank, bank_number):
         """self.channel 1 to 16"""
 
-        self.channel = channel
         self.fonts = fonts
+        self.channel = 1
+        self.bank = bank
+        self.bank_number = bank_number
+        
         self.set_audio()
         self.thread_dict = {}
         for i in range(128):
             self.thread_dict[i] = 0
             
     def set_audio(self):
-        """note from 0 to 127 but all values are not possible in all bank
+        """Spécific à FluidR3_GM.sf2
+        note from 0 to 127 but all values are not possible in all bank
         life 0 to ?
         channel 1 to 16
         volume 0 to 127
+
+        yamaha grand piano
+           program_select(channel,  sfid, bank, bank number)
+        fs.program_select(  1  ,    sfid,  0,      0       )
         """
+
         self.fs = fluidsynth.Synth()
         self.fs.start(driver='alsa')
         sfid = self.fs.sfload(self.fonts)
-
-        # TODO ce truc est spécific à FluidR3_GM.sf2
-        #      .program_select(channel,    sfid,   bank,   bank number)
-        self.fs.program_select(  1  ,      sfid,   0,      0  ) # yamaha grand piano
-        self.fs.program_select(  2  ,      sfid,   0,      40 ) # violin
-        self.fs.program_select(  3  ,      sfid,   0,      37 ) # pop bass
-        self.fs.program_select(  4  ,      sfid,   0,      56 ) # trompet
-        self.fs.program_select(  5  ,      sfid,   0,      66 ) # tenor sax
-        self.fs.program_select(  6  ,      sfid,   0,      114) # steel drums
-        self.fs.program_select(  7  ,      sfid,   0,      118) # synth drum
-        self.fs.program_select(  8  ,      sfid,   0,      119) # reverse cymbal
-        self.fs.program_select(  9  ,      sfid,   0,      116) # taiko drum
-        self.fs.program_select(  10  ,     sfid,   8,      38 ) # Synth Bass 3
-        self.fs.program_select(  11  ,     sfid,   0,      70 ) # basson
-        self.fs.program_select(  12  ,     sfid,   0,      46 ) # harp
-        self.fs.program_select(  13  ,     sfid,   0,      13 ) # xylophone
-        self.fs.program_select(  14  ,     sfid,   0,      24 ) # nylon string guitar
-        self.fs.program_select(  15  ,     sfid,   0,      25 ) # steel string guitar
-        self.fs.program_select(  16  ,     sfid,   0,      29 ) # overdrive guitar
+        self.fs.program_select(self.channel, sfid, self.bank, self.bank_number)
             
     def play_note(self, note, volume):
         
@@ -77,11 +72,11 @@ class PlayOneMidiChannel:
         thread = threading.Thread(target=self.play_note, args=(note, volume))
         thread.start()
 
-    def play_partition(self, partition, FPS):
+    def play_partition(self, partition, FPS, instrument):
         """partition = [[(82,100)], [(82,100), (45,88)], [(0,0)], ...
         un item tous les 1/FPS"""
 
-        print("Excécution d'une partition")
+        print("Excécution de la partition de", instrument)
         for event in partition:
             nombre_de_note = len(event)
             note_en_cours = []
@@ -102,7 +97,7 @@ class PlayOneMidiChannel:
 
             sleep(1/FPS)
             
-        print("The end !")
+        print("The end of", instrument, "!")
         self.the_end()
 
     def the_end(self):
@@ -130,13 +125,13 @@ class AnalyseMidiFile:
     def get_partitions(self):
         """Fait les étapes pour tous les instruments"""
         
-        parts, instruments = self.analyse()
+        parts, instruments_dict = self.analyse()
         partitions = []
-        for instrument in instruments:
-            instrument_roll = self.get_instrument_roll(parts[instrument])
-            partition = self.get_partition(instrument_roll, instrument)
+        for k, v in instruments_dict.items():
+            instrument_roll = self.get_instrument_roll(v)
+            partition = self.get_partition(instrument_roll, v)
             partitions.append(partition)
-        return partitions
+        return partitions, instruments_dict
                 
     def analyse(self):
         """ Instrument 0 Nom: Bass    
@@ -144,7 +139,7 @@ class AnalyseMidiFile:
             Instrument 2 Nom: Piano   
             Instrument 3 Nom: Piano
             Instrument 4 Nom: Guitar
-        Pb 2 pianos !!
+        Si 2 piano !!
         """
         midi_pretty_format = pretty_midi.PrettyMIDI(self.midi_file)
         instruments = midi_pretty_format.instruments
@@ -153,15 +148,15 @@ class AnalyseMidiFile:
 
         # Dict des partitions des instruments
         partitions_dict = {}
-        instruments_list = []
+        instruments_dict = {}
         for i in range(nbi):
             nom = instruments[i].name
-            instruments_list.append(nom)
+            instruments_dict[i] = instruments[i]
             print("Instrument", i, "Nom:", nom)
             # Chaque partition est un array
-            partitions_dict[nom] = instruments[i]
-            
-        return partitions_dict, instruments_list 
+            partitions_dict[i] = instruments[i]
+
+        return partitions_dict, instruments_dict
         
     def get_instrument_roll(self, partition):
         """Retourne un np.array de (128, FPS*durée du morceau en secondes)"""
@@ -196,40 +191,57 @@ class AnalyseMidiFile:
         return partition
 
 
-def play_partition(channel, partition):
+class AnalyseAndPlay:
+
+    pass
+
+    
+def play_partition(bank, bank_number, partition, instrument):
     fonts = "/usr/share/sounds/sf2/FluidR3_GM.sf2"
-    pomc = PlayOneMidiChannel(channel, fonts)
-    pomc.play_partition(partition, FPS)
+    pomc = PlayOneMidiChannel(fonts, bank, bank_number)
+    pomc.play_partition(partition, FPS, instrument)
 
 
-def thread_play_partition(channel, partition):
+def thread_play_partition(bank, bank_number, partition, instrument):
     """Le thread se termine si note_off"""
 
-    thread = threading.Thread(target=play_partition, args=(channel, partition))
+    thread = threading.Thread(target=play_partition, args=(bank,
+                                                            bank_number,
+                                                            partition,
+                                                            instrument))
     thread.start()
 
 
 if __name__ == '__main__':
 
-    song_mid = [
-        './music/Piano-Piece-Nr-10.mid',
-        './music/Test_Midi_Serge_V2.mid',
-        "./music/straight no chaser.mid",
-        "./music/Thelonius Monk Well, You Needn't.mid",
-        "./music/Thelonius Monk Blue monk.mid",
-        "./music/Bossa_Nova_USA.mid",
-        "./music/Midnight-Blues.mid",
-        "./music/Thelonius Monk criss-cross.mid",
-        "./music/Dave Brubeck Pick Up Sticks.mid",
-        "./music/Three's a Crowd - Dave Brubeck.mid"
-        ]
+    file_name = "./bank_GM.txt"
+    with open(file_name) as f:
+        data = f.read()
+        f.close()
+    lines = data.splitlines()
 
-    FPS = 100
-    amf = AnalyseMidiFile(song_mid[9], FPS)
-    partitions = amf.get_partitions()
+    file_list = []
+    for path, subdirs, files in os.walk("./music"):
+        for name in files:
+            if name.endswith("mid"):
+                file_list.append(str(pathlib.PurePath(path, name)))
+    
+    n = randint(0, len(file_list)-1)
+    print("Fichier en cours:", "./" + file_list[n])
+    FPS = 50
+    amf = AnalyseMidiFile("./" + file_list[n], FPS)
+    partitions, instruments_dict = amf.get_partitions()
     print("Nombre de partition", len(partitions))
-
-    thread_play_partition(3, partitions[0])
-    thread_play_partition(7, partitions[1])
-    thread_play_partition(1, partitions[3])
-    thread_play_partition(13, partitions[4])
+    
+    for i in range(len(partitions)):
+        # ligne au hasard
+        haz = randint(0, len(lines)-1)
+        line = lines[haz].split(" ")
+        bank, bank_number = int(line[0]), int(line[1])
+        thread_play_partition(  bank,
+                                bank_number,
+                                partitions[i],
+                                instruments_dict[i])
+        
+    sleep(len(partitions[0])/100)
+    print("Fin du fichier", file_list[n])
