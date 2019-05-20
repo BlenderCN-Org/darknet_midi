@@ -8,6 +8,11 @@ Installation:
     pretty_midi
     fluidsynth
     FluidR3_GM.sf2
+Le dossier music doit exister avec des morceaux midi
+Le fichier bank_GM.txt doit être avec ce script
+
+Excécution du script, pour jouer un morceau au hasard:
+    python3 analyse_play_midi.py
 """
 
 
@@ -192,17 +197,20 @@ class AnalyseMidiFile:
 
 
 class AnalyseAndPlay:
-
-    def __init__(self, midi, FPS):
+    """    """
+    
+    def __init__(self, midi, FPS, fonts, bank_GM_txt):
         """Fichier midi et FPS"""
         
         self.midi = midi
         self.FPS = FPS
+        self.fonts = fonts
+        self.bank_GM_txt = bank_GM_txt
         self.banks = self.get_banks()
         self.analyse_and_play()
         
     def get_banks(self):
-        file_name = "./bank_GM.txt"
+        file_name = self.bank_GM_txt
         with open(file_name) as f:
             data = f.read()
             f.close()
@@ -228,8 +236,7 @@ class AnalyseAndPlay:
         print("Fin du fichier", file_list[n])
     
     def play_partition(self, bank, bank_number, partition, instrument):
-        fonts = "/usr/share/sounds/sf2/FluidR3_GM.sf2"
-        pomc = PlayOneMidiChannel(fonts, bank, bank_number)
+        pomc = PlayOneMidiChannel(self.fonts, bank, bank_number)
         pomc.play_partition(partition, FPS, instrument)
 
     def thread_play_partition(self, bank, bank_number, partition, instrument):
@@ -243,7 +250,10 @@ class AnalyseAndPlay:
 
 
 if __name__ == '__main__':
-
+    """Joue au hasard un morceau du dossier music
+    Il faut définir le chemin de FluidR3_GM.sf2
+    """
+    
     file_list = []
     for path, subdirs, files in os.walk("./music"):
         for name in files:
@@ -252,7 +262,15 @@ if __name__ == '__main__':
     
     n = randint(0, len(file_list)-1)
     print("Fichier en cours:", "./" + file_list[n])
-    
+
+    # FPS de 10 (trop petit) à 100 (bien)
     FPS = 50
+
+    # Il faut installer FluidR3_GM.sf2
+    fonts = "/usr/share/sounds/sf2/FluidR3_GM.sf2"
+    
+    # Le fichier bank_GM.txt doit être avec ce sript
+    bank_GM_txt = "./bank_GM.txt"
+    
     midi = "./" + file_list[n]
-    aap = AnalyseAndPlay(midi, FPS)
+    aap = AnalyseAndPlay(midi, FPS, fonts, bank_GM_txt)
