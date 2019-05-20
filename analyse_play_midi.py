@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
 
+"""
+Utilise FluidR3_GM.sf2 uniquement
+Installation:
+    numpy
+    pretty_midi
+    fluidsynth
+    FluidR3_GM.sf2
+"""
+
 
 import os
 from time import sleep
@@ -10,15 +19,6 @@ import threading
 import numpy
 import pretty_midi
 import fluidsynth
-
-"""
-Utilise FluidR3_GM.sf2 uniquement
-Installation:
-    numpy
-    pretty_midi
-    fluidsynth
-    FluidR3_GM.sf2
-"""
 
 
 class PlayOneMidiChannel:
@@ -193,32 +193,56 @@ class AnalyseMidiFile:
 
 class AnalyseAndPlay:
 
-    pass
-
+    def __init__(self, midi, FPS):
+        """Fichier midi et FPS"""
+        
+        self.midi = midi
+        self.FPS = FPS
+        self.banks = self.get_banks()
+        self.analyse_and_play()
+        
+    def get_banks(self):
+        file_name = "./bank_GM.txt"
+        with open(file_name) as f:
+            data = f.read()
+            f.close()
+        lines = data.splitlines()
+        return lines
+        
+    def analyse_and_play(self):
+        amf = AnalyseMidiFile(self.midi, self.FPS)
+        partitions, instruments_dict = amf.get_partitions()
+        print("Nombre de partition", len(partitions))
+        
+        for i in range(len(partitions)):
+            # ligne au hasard
+            haz = randint(0, len(self.banks)-1)
+            line = self.banks[haz].split(" ")
+            bank, bank_number = int(line[0]), int(line[1])
+            self.thread_play_partition( bank,
+                                        bank_number,
+                                        partitions[i],
+                                        instruments_dict[i])
+                
+        sleep(len(partitions[0])/100)
+        print("Fin du fichier", file_list[n])
     
-def play_partition(bank, bank_number, partition, instrument):
-    fonts = "/usr/share/sounds/sf2/FluidR3_GM.sf2"
-    pomc = PlayOneMidiChannel(fonts, bank, bank_number)
-    pomc.play_partition(partition, FPS, instrument)
+    def play_partition(self, bank, bank_number, partition, instrument):
+        fonts = "/usr/share/sounds/sf2/FluidR3_GM.sf2"
+        pomc = PlayOneMidiChannel(fonts, bank, bank_number)
+        pomc.play_partition(partition, FPS, instrument)
 
+    def thread_play_partition(self, bank, bank_number, partition, instrument):
+        """Le thread se termine si note_off"""
 
-def thread_play_partition(bank, bank_number, partition, instrument):
-    """Le thread se termine si note_off"""
-
-    thread = threading.Thread(target=play_partition, args=(bank,
-                                                            bank_number,
-                                                            partition,
-                                                            instrument))
-    thread.start()
+        thread = threading.Thread(target=self.play_partition, args=(bank,
+                                                                bank_number,
+                                                                partition,
+                                                                instrument))
+        thread.start()
 
 
 if __name__ == '__main__':
-
-    file_name = "./bank_GM.txt"
-    with open(file_name) as f:
-        data = f.read()
-        f.close()
-    lines = data.splitlines()
 
     file_list = []
     for path, subdirs, files in os.walk("./music"):
@@ -228,20 +252,7 @@ if __name__ == '__main__':
     
     n = randint(0, len(file_list)-1)
     print("Fichier en cours:", "./" + file_list[n])
-    FPS = 50
-    amf = AnalyseMidiFile("./" + file_list[n], FPS)
-    partitions, instruments_dict = amf.get_partitions()
-    print("Nombre de partition", len(partitions))
     
-    for i in range(len(partitions)):
-        # ligne au hasard
-        haz = randint(0, len(lines)-1)
-        line = lines[haz].split(" ")
-        bank, bank_number = int(line[0]), int(line[1])
-        thread_play_partition(  bank,
-                                bank_number,
-                                partitions[i],
-                                instruments_dict[i])
-        
-    sleep(len(partitions[0])/100)
-    print("Fin du fichier", file_list[n])
+    FPS = 50
+    midi = "./" + file_list[n]
+    aap = AnalyseAndPlay(midi, FPS)
