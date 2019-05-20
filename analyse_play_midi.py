@@ -1,6 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
 
+########################################################################
+# This file is part of Darknet Midi.
+#
+# Darknet Midi is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Darknet Midi is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+########################################################################
+
+
 """
 Utilise FluidR3_GM.sf2 uniquement
 Installation:
@@ -78,11 +94,14 @@ class PlayOneMidiChannel:
         thread.start()
 
     def play_partition(self, partition, FPS, instrument):
-        """partition = [[(82,100)], [(82,100), (45,88)], [(0,0)], ...
-        un item tous les 1/FPS"""
+        """partition = liste de listes (note=82, velocity=100)
+        [[(82,100)], [(82,100), (45,88)], [(0,0)], ...
+        un item tous les 1/FPS
+        """
 
         print("Excécution de la partition de", instrument)
         for event in partition:
+            # event sont les notes pour la frame
             nombre_de_note = len(event)
             note_en_cours = []
             for midi in range(nombre_de_note):
@@ -169,13 +188,12 @@ class AnalyseMidiFile:
         # La méthode get_piano_roll marche pour tous les instruments
         instrument_roll = partition.get_piano_roll(self.FPS)
 
-        # 64 secondes soit 640 dixième de secondes
-        #print("Taille du array:", instrument_roll.shape)  # (128, 640)
-
         return instrument_roll
 
     def get_partition(self, instrument_roll, instrument):
-        """Conversion du numpy array en liste de note tous les FPS"""
+        """Conversion du numpy array en liste de note tous les FPS
+        La conversion est longue, 10 à 20 secondes par instrument
+        """
 
         # Copie des lignes du array dans une liste de ligne
         lignes = []

@@ -1,4 +1,4 @@
-# darknet_midi
+# Darknet Midi
 
 * Du son en midi
 * Les notes deviennent des objets dans des images
